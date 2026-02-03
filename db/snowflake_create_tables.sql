@@ -63,3 +63,9 @@ CREATE TABLE IF NOT EXISTS community_alerts (
     summary VARCHAR(65535),
     ts TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
 );
+
+-- ========== APP_SETTINGS (payment config from Admin) ==========
+CREATE TABLE IF NOT EXISTS app_settings (
+    key VARCHAR(255) PRIMARY KEY,
+    value VARCHAR(65535) NOT NULL DEFAULT ''
+);

@@ -123,6 +123,13 @@ def init_db():
         )
     """)
 
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS app_settings (
+            key VARCHAR(255) PRIMARY KEY,
+            value VARCHAR(65535) NOT NULL DEFAULT ''
+        )
+    """)
+
     conn.commit()
     _seed_dummy_data(cur)
     conn.commit()

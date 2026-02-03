@@ -1,5 +1,5 @@
-"""Rate limits: free vs premium daily check limits."""
-import streamlit as st
+"""Rate limits: free vs premium daily check limits (from Admin → Payment config, stored in DB)."""
+from services.payments import get_payment_config
 from db.queries import (
     ensure_user,
     get_user_plan,
@@ -10,32 +10,14 @@ from db.queries import (
 
 
 def _get_limits():
-    """Daily limits from secrets. Supports PAYMENTS.free_daily_limit or top-level PAYMENTS_free_daily_limit."""
+    """Daily limits from DB (Admin → Payment config)."""
     try:
-        payments = st.secrets.get("PAYMENTS") or {}
+        pay = get_payment_config()
+        free = int(pay.get("free_daily_limit", 2))
+        premium = int(pay.get("premium_daily_limit", 9999))
+        return free, premium
     except Exception:
         return 2, 9999
-    if isinstance(payments, dict):
-        try:
-            free = payments.get("free_daily_limit") or st.secrets.get("PAYMENTS_free_daily_limit", 2)
-            premium = payments.get("premium_daily_limit") or st.secrets.get("PAYMENTS_premium_daily_limit", 9999)
-        except Exception:
-            return 2, 9999
-    else:
-        try:
-            free = st.secrets.get("PAYMENTS_free_daily_limit", 2)
-            premium = st.secrets.get("PAYMENTS_premium_daily_limit", 9999)
-        except Exception:
-            return 2, 9999
-    try:
-        free = int(free)
-    except (TypeError, ValueError):
-        free = 2
-    try:
-        premium = int(premium)
-    except (TypeError, ValueError):
-        premium = 9999
-    return free, premium
 
 
 def get_daily_limit(email: str) -> int:

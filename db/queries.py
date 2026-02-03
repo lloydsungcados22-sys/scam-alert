@@ -1,5 +1,7 @@
 """CRUD for CheckMoYan. Uses Snowflake if [SNOWFLAKE] in secrets.toml, else SQLite."""
+import json
 from . import schema
+
 
 def _backend():
     if schema._use_snowflake():
@@ -73,3 +75,30 @@ def update_upgrade_request(
     approved_until: str = None,
 ) -> None:
     return _backend().update_upgrade_request(req_id, status, admin_notes, approved_until)
+
+
+def get_app_setting(key: str) -> str:
+    return _backend().get_app_setting(key)
+
+
+def set_app_setting(key: str, value: str) -> None:
+    return _backend().set_app_setting(key, value)
+
+
+PAYMENT_CONFIG_KEY = "payment_config"
+
+
+def get_payment_config_from_db() -> dict | None:
+    """Return payment config dict from DB, or None if not set."""
+    raw = get_app_setting(PAYMENT_CONFIG_KEY)
+    if not raw or not raw.strip():
+        return None
+    try:
+        return json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
+def set_payment_config_in_db(config: dict) -> None:
+    """Save payment config dict to DB."""
+    set_app_setting(PAYMENT_CONFIG_KEY, json.dumps(config))

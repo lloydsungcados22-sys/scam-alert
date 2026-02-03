@@ -1,12 +1,14 @@
-"""Admin: log in with password from secrets.toml (ADMIN_PASSWORD); upgrade requests with receipt, change user plan, stats."""
+"""Admin: log in with password from secrets.toml (ADMIN_PASSWORD); upgrade requests, user plan, payment config, stats."""
 import os
 import streamlit as st
 from services.auth import is_admin_logged_in, check_admin_password
+from services.payments import get_payment_config
 from db.queries import (
     list_upgrade_requests,
     update_upgrade_request,
     set_user_plan,
     ensure_user,
+    set_payment_config_in_db,
 )
 from db.schema import get_conn
 
@@ -48,7 +50,7 @@ def run():
         st.session_state["admin_logged_in"] = False
         st.rerun()
 
-    tab1, tab2, tab3 = st.tabs(["Upgrade requests", "Users", "Stats"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Upgrade requests", "Users", "Payment config", "Stats"])
 
     with tab1:
         status_filter = st.selectbox("Filter", ["pending", "approved", "rejected", "all"], key="admin_status")
@@ -113,6 +115,45 @@ def run():
                     st.rerun()
 
     with tab3:
+        st.subheader("Payment configuration")
+        st.caption("Configure GCash/Maya and plan pricing. These values appear on the Pricing page.")
+        pay = get_payment_config()
+        with st.form("admin_payment_config"):
+            st.markdown("**GCash**")
+            gcash_number = st.text_input("GCash number", value=pay.get("gcash_number") or "", key="admin_gcash_number", placeholder="09XX XXX XXXX")
+            gcash_name = st.text_input("GCash name (display)", value=pay.get("gcash_name") or "", key="admin_gcash_name", placeholder="Your name")
+            st.markdown("**Maya**")
+            maya_number = st.text_input("Maya number", value=pay.get("maya_number") or "", key="admin_maya_number", placeholder="09XX XXX XXXX")
+            maya_name = st.text_input("Maya name (display)", value=pay.get("maya_name") or "", key="admin_maya_name", placeholder="Your name")
+            st.markdown("**Plans**")
+            col1, col2 = st.columns(2)
+            with col1:
+                premium_price = st.number_input("Premium price (₱)", min_value=0, value=int(pay.get("premium_price_php") or 199), key="admin_premium_price")
+                premium_billing = st.text_input("Premium billing label", value=pay.get("premium_billing") or "Month", key="admin_premium_billing", placeholder="Month")
+            with col2:
+                pro_price = st.number_input("Pro price (₱)", min_value=0, value=int(pay.get("pro_price_php") or 999), key="admin_pro_price")
+                pro_billing = st.text_input("Pro billing label", value=pay.get("pro_billing") or "monthly", key="admin_pro_billing", placeholder="monthly")
+            st.markdown("**Daily limits**")
+            free_limit = st.number_input("Free checks per day", min_value=1, value=int(pay.get("free_daily_limit") or 2), key="admin_free_limit")
+            premium_limit = st.number_input("Premium/Pro checks per day (unlimited = 9999)", min_value=1, value=int(pay.get("premium_daily_limit") or 9999), key="admin_premium_limit")
+            if st.form_submit_button("Save payment config"):
+                set_payment_config_in_db({
+                    "gcash_number": (gcash_number or "").strip(),
+                    "gcash_name": (gcash_name or "").strip(),
+                    "maya_number": (maya_number or "").strip(),
+                    "maya_name": (maya_name or "").strip(),
+                    "premium_price_php": premium_price,
+                    "premium_billing": (premium_billing or "Month").strip(),
+                    "pro_price_php": pro_price,
+                    "pro_billing": (pro_billing or "monthly").strip(),
+                    "free_daily_limit": free_limit,
+                    "premium_daily_limit": premium_limit,
+                })
+                st.success("Payment config saved. It will appear on the Pricing page.")
+                st.rerun()
+
+    with tab4:
+        st.subheader("Stats")
         conn = get_conn()
         cur = conn.cursor()
         cur.execute("SELECT COUNT(*) AS n FROM scans")

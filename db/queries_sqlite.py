@@ -183,3 +183,23 @@ def update_upgrade_request(
     )
     conn.commit()
     conn.close()
+
+
+def get_app_setting(key: str) -> str:
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT value FROM app_settings WHERE key = ?", (key,))
+    row = cur.fetchone()
+    conn.close()
+    return (row["value"] if row else "") or ""
+
+
+def set_app_setting(key: str, value: str) -> None:
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (key, value),
+    )
+    conn.commit()
+    conn.close()

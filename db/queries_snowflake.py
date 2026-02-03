@@ -244,3 +244,27 @@ def update_upgrade_request(
     conn.commit()
     cur.close()
     conn.close()
+
+
+def get_app_setting(key: str) -> str:
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT value FROM app_settings WHERE key = %s", (key,))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    if not row:
+        return ""
+    v = _val(row, "value", "VALUE")
+    return str(v) if v is not None else ""
+
+
+def set_app_setting(key: str, value: str) -> None:
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("UPDATE app_settings SET value = %s WHERE key = %s", (value, key))
+    if cur.rowcount == 0:
+        cur.execute("INSERT INTO app_settings (key, value) VALUES (%s, %s)", (key, value))
+    conn.commit()
+    cur.close()
+    conn.close()
